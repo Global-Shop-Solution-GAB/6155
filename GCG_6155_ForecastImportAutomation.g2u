@@ -1,0 +1,42 @@
+﻿Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+	v.Local.iRet.Declare
+	v.Local.s4833.Declare
+	v.Local.s5171.Declare
+	v.Local.sImport.Declare
+	
+	'Set script paths
+	f.Intrinsic.String.Build("{0}GAB_4833_CP_DelForeTbl.gas",v.Caller.GasDir,v.Local.s4833)
+	f.Intrinsic.String.Build("{0}GAB_5171_CP_ForeModOrdQty_DL.gas",v.Caller.GasDir,v.Local.s5171)
+	f.Intrinsic.String.Build("{0}BET\BET_ForecastImport.g2u",v.Caller.GasDir,v.Local.sImport)
+	
+	'Invoke wait dialog.  Make sure to set it every time we change steps!
+	f.Intrinsic.ui.InvokeWaitDialog("Clearing forecast data...", "Forecast Import Automation")
+	'Call script to clear forecasts
+	f.Global.General.CallSyncGAS(v.Local.s4833,"",2)
+	'convert smoothed file to GSS forecast import file
+	f.Intrinsic.UI.ChangeWaitStatus("Converting forecast file to GSS format...")
+	f.Global.General.CallSyncGAS(v.Local.sImport,"",2)
+	'call the forecast import screen from core, launch an instructional screen showing the user to not create work orders at this stage
+	f.Intrinsic.UI.ChangeWaitStatus("Queueing forecasts...")
+	f.Global.Task.callwrappersync(50, "FC0006")
+	'run 5171 netting script
+	f.Intrinsic.UI.ChangeWaitStatus("Netting forecasts with booked sales orders...")
+	f.Global.General.CallSyncGAS(v.Local.s5171,"",2)
+	'delete any forecast import lines where qty <= 0
+	f.ODBC.Connection!con.opencompanyconnection(600)
+	f.ODBC.Connection!con.Execute("delete from forecast_import_line where quantity <= 0;")
+	f.ODBC.Connection!con.Execute("delete from forecast_import_hdr where concat(key_date,key_time) not in (select concat(key_date,key_time) from forecast_import_line);")
+	f.ODBC.Connection!con.Close
+	'call unattended forecast maintenance
+	f.Intrinsic.UI.ChangeWaitStatus("Importing forecasts with demand...")
+	Function.Global.Task.LaunchMenuTask(818,0,v.Local.iRet)
+	f.Intrinsic.UI.Sleep(10)
+Program.Sub.Main.End
+
+Program.Sub.Comments.Start
+${$5$}$3.0.0.0$}$1
+${$6$}$dduncan$}$20201022155340685$}$r0o+00bj735YsiGsQ60YIo/Zb+26OZQGKklA7jw5r2N6sjQ2HwHAK8aAWtL/zWg7rLJ1G1fq6pg=
+Program.Sub.Comments.End
